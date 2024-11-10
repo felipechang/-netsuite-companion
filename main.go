@@ -40,8 +40,9 @@ func main() {
 				},
 			},
 			{
-				Name:  "add",
-				Usage: "Add a project, or create script, module, or TS type files",
+				Name:    "add",
+				Aliases: []string{"a"},
+				Usage:   "Add a project, or create script, module, or TS type files",
 				Action: func(cCtx *cli.Context) error {
 					fmt.Println("Please select one of the following options:")
 					for _, option := range util.GetOptions() {

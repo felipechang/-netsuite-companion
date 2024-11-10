@@ -82,7 +82,7 @@ func (s *BaseStore) readProjectFile(path string) (*ProjectStore, error) {
 func (s *BaseStore) readGlobalFile(path string) (*GlobalStore, error) {
 	// Check if the file exists
 	if !util.Exists(path) {
-		return nil, fmt.Errorf("store not found at %s", path)
+		return nil, fmt.Errorf("store not found at %s, please run nsc init", path)
 	}
 	// Open the file for reading
 	file, err := os.OpenFile(path, os.O_RDONLY, storePermissions)
@@ -102,7 +102,7 @@ func (s *BaseStore) readGlobalFile(path string) (*GlobalStore, error) {
 func (s *BaseStore) updateFile(path string, content interface{}) error {
 	// Check if the file exists
 	if !util.Exists(path) {
-		return fmt.Errorf("store not found at %s", path)
+		return fmt.Errorf("store not found at %s, please run nsc init", path)
 	}
 	// Open the file for writing
 	file, err := os.OpenFile(path, os.O_WRONLY, storePermissions)
