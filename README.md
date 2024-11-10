@@ -6,8 +6,16 @@ A command-line tool for managing NetSuite development projects and scripts.
 **Getting Started**
 -------------------
 
-To use this tool, simply run the command `nsc` in your terminal. You will be presented with a list of available
-commands.
+To use this tool, you'll need to build the binary first.
+
+Run the following command in your terminal:
+
+```
+go build -o ~/go/bin/nsc main.go
+```
+
+to produce the `nsc` binary in go binaries directory. Once built, you can run the command `nsc` in your terminal. You
+will be presented with a list of available commands.
 
 **Commands**
 ------------
@@ -37,9 +45,23 @@ commands.
 
 ### Additional Features
 
-* `--inference=your instructions`: Run the generated file through OpenAI ChatGPT4.
+* `--inference=your instructions`: Run the generated file through OpenAI ChatGPT.
 
 **License**
 ---------
 
 This software is licensed under the MIT License.
+
+**Contributing**
+--------------
+
+We welcome contributions to the NetSuite Companion! Please see our contributing guide for more information on how to get
+involved.
+
+**Issues**
+---------
+
+If you encounter any issues while using the NetSuite Companion, please report them to our issue tracker. We'll do our
+best to help you resolve the issue as quickly as possible.
+
+I added a step to build the binary using `go build` before running the `nsc` command.
