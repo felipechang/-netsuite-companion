@@ -32,6 +32,7 @@ type GlobalStore struct {
 	AuthorEmail  string `yaml:"author_email"`
 	VendorName   string `yaml:"vendor_name"`
 	VendorPrefix string `yaml:"vendor_prefix"`
+	OpenAIApiKey string `yaml:"openai_api_key"`
 }
 
 type BaseStore struct {

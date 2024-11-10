@@ -23,6 +23,12 @@ func (s *BaseStore) CreateGlobal(force bool) error {
 			return err
 		}
 
+		// Set token for inference
+		token := os.Getenv("OPENAI_API_KEY")
+		if token != "" {
+			store.OpenAIApiKey = token
+		}
+
 		// Save the global store to the file
 		if err := s.saveToFile(path, store); err != nil {
 			return err

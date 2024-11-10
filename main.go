@@ -81,6 +81,7 @@ func main() {
 						Name:  "bundle",
 						Usage: "Add a new bundle script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -89,7 +90,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateBundle(global, project)
+							err = tree.CreateBundle(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -100,6 +101,7 @@ func main() {
 						Name:  "client",
 						Usage: "Add a new client script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -108,7 +110,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateClient(global, project)
+							err = tree.CreateClient(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -119,6 +121,7 @@ func main() {
 						Name:  "formclient",
 						Usage: "Add a new form client script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -127,7 +130,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateFormClient(global, project)
+							err = tree.CreateFormClient(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -138,6 +141,7 @@ func main() {
 						Name:  "mapreduce",
 						Usage: "Add a new map reduce script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -146,7 +150,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateMapReduce(global, project)
+							err = tree.CreateMapReduce(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -157,6 +161,7 @@ func main() {
 						Name:  "massupdate",
 						Usage: "Add a new mass update script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -165,7 +170,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateMassUpdate(global, project)
+							err = tree.CreateMassUpdate(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -176,6 +181,7 @@ func main() {
 						Name:  "portlet",
 						Usage: "Add a new portlet script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -184,7 +190,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreatePortlet(global, project)
+							err = tree.CreatePortlet(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -195,6 +201,7 @@ func main() {
 						Name:  "restlet",
 						Usage: "Add a new restlet script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -203,7 +210,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateRestlet(global, project)
+							err = tree.CreateRestlet(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -214,6 +221,7 @@ func main() {
 						Name:  "scheduled",
 						Usage: "Add a new scheduled script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -222,7 +230,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateScheduled(global, project)
+							err = tree.CreateScheduled(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -233,6 +241,7 @@ func main() {
 						Name:  "suitelet",
 						Usage: "Add a new suitelet script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -241,7 +250,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateSuitelet(global, project)
+							err = tree.CreateSuitelet(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -252,6 +261,7 @@ func main() {
 						Name:  "userevent",
 						Usage: "Add a new user event script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -260,7 +270,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateUserEvent(global, project)
+							err = tree.CreateUserEvent(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -271,6 +281,7 @@ func main() {
 						Name:  "workflowaction",
 						Usage: "Add a new workflow action script",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -279,7 +290,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateWorkflowAction(global, project)
+							err = tree.CreateWorkflowAction(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -290,6 +301,7 @@ func main() {
 						Name:  "module",
 						Usage: "Add a module file",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -298,7 +310,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateModule(global, project)
+							err = tree.CreateModule(global, project, instruct)
 							if err != nil {
 								return err
 							}
@@ -309,6 +321,7 @@ func main() {
 						Name:  "type",
 						Usage: "Add a TypeScript type",
 						Action: func(cCtx *cli.Context) error {
+							instruct := cCtx.String("instruct")
 							global, err := baseStore.RetrieveGlobal()
 							if err != nil {
 								return err
@@ -317,7 +330,7 @@ func main() {
 							if err != nil {
 								return err
 							}
-							err = tree.CreateType(global, project)
+							err = tree.CreateType(global, project, instruct)
 							if err != nil {
 								return err
 							}

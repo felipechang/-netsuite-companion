@@ -2,7 +2,9 @@ package file
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/sashabaranov/go-openai"
 	"netsuite-companion/store"
 	"netsuite-companion/util"
 	"path/filepath"
@@ -11,51 +13,111 @@ import (
 	"time"
 )
 
+// ClientScript represents a client script
 type ClientScript struct {
-	CompanyName  string
-	Date         string
-	Description  string
-	Project      string
-	UserEmail    string
-	UserName     string
-	ScriptName   string
-	ScriptId     string
-	ScriptPath   string // Path to js file
-	DeploymentId string // Path to js file
+	// Company name
+	CompanyName string
+	// Date of script creation
+	Date string
+	// Description of script
+	Description string
+	// Project name
+	Project string
+	// User email
+	UserEmail string
+	// User name
+	UserName string
+	// Script name
+	ScriptName string
+	// Script ID
+	ScriptId string
+	// Path to script file
+	ScriptPath string
+	// Deployment ID
+	DeploymentId string
 }
 
 // parseTemplate parses a template and replaces placeholders with script data
 func (s *Tree) parseTemplate(script *ClientScript, name string, text string) (string, error) {
+	// Create a new template with the given name
 	t, err := template.New(name).Parse(text)
 	if err != nil {
+		// Return an error if the template cannot be parsed
 		return "", err
 	}
+	// Create a bytes buffer to store the result
 	var result bytes.Buffer
+	// Execute the template with the script data
 	err = t.Execute(&result, script)
 	if err != nil {
+		// Return an error if the template execution fails
 		return "", err
 	}
+	// Return the result as a string
 	return result.String(), nil
 }
 
+func (s *Tree) runInference(global *store.GlobalStore, instruct string, parsedTS string) (string, error) {
+	if global.OpenAIApiKey == "" {
+		return "", fmt.Errorf("openai_api_key not set on global config")
+	}
+	client := openai.NewClient(global.OpenAIApiKey)
+	resp, err := client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: openai.GPT4,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: instruct,
+				},
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: parsedTS,
+				},
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	return resp.Choices[0].Message.Content, nil
+}
+
 // addDeploymentFiles adds deployment files for a script
-func (s *Tree) addDeploymentFiles(global *store.GlobalStore, project *store.ProjectStore, scriptType string, ts string, xml string) error {
+func (s *Tree) addDeploymentFiles(global *store.GlobalStore, project *store.ProjectStore, scriptType string, ts string, xml string, instruct string) error {
+	// Check if either typescript or xml content is set
 	if ts == "" && xml == "" {
+		// Return an error if neither is set
 		return fmt.Errorf("typescript or xml content must be set")
 	}
-	var fileName = util.GetInput("Enter the file name: ")
-	if fileName == "" {
-		return fmt.Errorf("file name cannot be empty")
+
+	// Get the file name from the user
+	var fileName string
+	for fileName = ""; fileName == ""; {
+		// Get the file name from the user
+		fileName = util.GetInput("Enter the file name: ")
+		if fileName == "" {
+			// If the file name is blank, ask again
+			continue
+		}
+		break
 	}
+
+	// Parse the file name to make it lowercase and replace spaces with underscores
 	fileNameParsed := strings.ReplaceAll(strings.ToLower(fileName), " ", "_")
+	// Get the file description from the user
 	var description = util.GetInput("Enter the file description: ")
 	if description == "" {
-		return fmt.Errorf("file description cannot be empty")
+		description = "No description"
 	}
+	// Create a file pattern using the vendor prefix and file name
 	filePattern := fmt.Sprintf("%s_%s", global.VendorPrefix, fileNameParsed)
+	// Create the project path
 	projectPath := filepath.Join("SuiteScripts", global.VendorName, project.Current)
+	// Create the script path
 	scriptPath := filepath.Join(projectPath, fmt.Sprintf("%s_%s.js", filePattern, scriptType))
-
+	// Create a new client script
 	clientScript := &ClientScript{
 		CompanyName:  global.VendorName,
 		Date:         time.Now().Format("01/02/2006"),
@@ -68,40 +130,52 @@ func (s *Tree) addDeploymentFiles(global *store.GlobalStore, project *store.Proj
 		ScriptPath:   fmt.Sprintf(`\%s`, scriptPath),
 		DeploymentId: fmt.Sprintf(`customdeploy_%s`, filePattern),
 	}
+	// If typescript content is set, parse the template and create a file
 	if ts != "" {
 		parsedTS, err := s.parseTemplate(clientScript, scriptType, ts)
 		if err != nil {
+			// Return an error if the template parsing fails
 			return err
 		}
-		destinationTS := filepath.Join(
+		if instruct != "" {
+			parsedTS, err = s.runInference(global, instruct, parsedTS)
+			if err != nil {
+				// Return an error if the inference fails
+				return err
+			}
+		}
+
+		err = s.createFile(filepath.Join(
 			filepath.Join(s.dirname, "src", "FileCabinet", projectPath),
 			fmt.Sprintf("%s_%s.ts", filePattern, scriptType),
-		)
-		err = s.createFile(destinationTS, parsedTS)
+		), parsedTS)
 		if err != nil {
+			// Return an error if the file creation fails
 			return err
 		}
 	}
+	// If xml content is set, parse the template and create a file
 	if xml != "" {
 		parsedXML, err := s.parseTemplate(clientScript, scriptType, xml)
 		if err != nil {
+			// Return an error if the template parsing fails
 			return err
 		}
-		destinationXML := filepath.Join(
+		err = s.createFile(filepath.Join(
 			filepath.Join(s.dirname, "src", "Objects"),
 			fmt.Sprintf("%s_%s.xml", filePattern, scriptType),
-		)
-		err = s.createFile(destinationXML, parsedXML)
+		), parsedXML)
 		if err != nil {
+			// Return an error if the file creation fails
 			return err
 		}
 	}
-
+	// Return nil if no errors occurred
 	return nil
 }
 
 // CreateBundle creates a bundle script
-func (s *Tree) CreateBundle(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateBundle(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "bundle", `import {EntryPoints} from "N/types";
 import onAfterInstallContext = EntryPoints.BundleInstallation.onAfterInstallContext;
 import onAfterUpdateContext = EntryPoints.BundleInstallation.onAfterUpdateContext;
@@ -153,7 +227,7 @@ export let beforeUninstall: EntryPoints.BundleInstallation.beforeUninstall = (co
 export let beforeUpdate: EntryPoints.BundleInstallation.beforeUpdate = (context: onBeforeUpdateContext) => {
     // Enter code here
 };
-`, ``)
+`, ``, instruct)
 	if err != nil {
 		return err
 	}
@@ -161,7 +235,7 @@ export let beforeUpdate: EntryPoints.BundleInstallation.beforeUpdate = (context:
 }
 
 // CreateClient creates a client script
-func (s *Tree) CreateClient(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateClient(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "client", `import {EntryPoints} from "N/types";
 
 /**
@@ -242,7 +316,7 @@ export let saveRecord: EntryPoints.Client.saveRecord = (context: EntryPoints.Cli
   <notifyowner>T</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[{{.ScriptPath}}]</scriptfile>
-</clientscript>`)
+</clientscript>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -250,7 +324,7 @@ export let saveRecord: EntryPoints.Client.saveRecord = (context: EntryPoints.Cli
 }
 
 // CreateFormClient creates a form client script
-func (s *Tree) CreateFormClient(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateFormClient(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "formclient", `import {EntryPoints} from "N/types";
 
 /**
@@ -320,7 +394,7 @@ export let sublistChanged: EntryPoints.Client.sublistChanged = (context: EntryPo
 export let saveRecord: EntryPoints.Client.saveRecord = (context: EntryPoints.Client.saveRecordContext) => {
     // Enter code here
 };
-`, ``)
+`, ``, instruct)
 	if err != nil {
 		return err
 	}
@@ -328,7 +402,7 @@ export let saveRecord: EntryPoints.Client.saveRecord = (context: EntryPoints.Cli
 }
 
 // CreateMapReduce creates a map/reduce script
-func (s *Tree) CreateMapReduce(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateMapReduce(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "mapreduce", `import {EntryPoints} from "N/types";
 
 /**
@@ -379,7 +453,7 @@ export let summarize: EntryPoints.MapReduce.summarize = (summary: EntryPoints.Ma
   <notifyowner>T</notifyowner>
   <scriptfile>[{{.ScriptPath}}]</scriptfile>
 </mapreducescript>
-`)
+`, instruct)
 	if err != nil {
 		return err
 	}
@@ -387,7 +461,7 @@ export let summarize: EntryPoints.MapReduce.summarize = (summary: EntryPoints.Ma
 }
 
 // CreateMassUpdate creates a mass update script
-func (s *Tree) CreateMassUpdate(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateMassUpdate(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "massupdate", `import {EntryPoints} from "N/types";
 
 /**
@@ -423,7 +497,7 @@ export let each: EntryPoints.MassUpdate.each = (params: EntryPoints.MassUpdate.e
   <notifyowner>T</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[{{.ScriptPath}}]</scriptfile>
-</massupdatescript>`)
+</massupdatescript>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -431,7 +505,7 @@ export let each: EntryPoints.MassUpdate.each = (params: EntryPoints.MassUpdate.e
 }
 
 // CreatePortlet creates a portlet script
-func (s *Tree) CreatePortlet(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreatePortlet(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "portlet", `import {EntryPoints} from "N/types";
 
 /**
@@ -482,8 +556,7 @@ export let render: EntryPoints.Portlet.render = (params: EntryPoints.Portlet.ren
       <title>{{.ScriptName}}</title>
     </scriptdeployment>
   </scriptdeployments>
-</portlet>
-`)
+</portlet>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -491,7 +564,7 @@ export let render: EntryPoints.Portlet.render = (params: EntryPoints.Portlet.ren
 }
 
 // CreateRestlet creates a restlet script
-func (s *Tree) CreateRestlet(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateRestlet(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "restlet", `import {EntryPoints} from "N/types";
 
 /** RESTlet standard return */
@@ -564,7 +637,7 @@ export = {
       <title>{{.ScriptName}}</title>
     </scriptdeployment>
   </scriptdeployments>
-</restlet>`)
+</restlet>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -572,7 +645,7 @@ export = {
 }
 
 // CreateScheduled creates a scheduled script
-func (s *Tree) CreateScheduled(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateScheduled(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "scheduled", `import {EntryPoints} from "N/types";
 
 /**
@@ -622,7 +695,7 @@ export let execute: EntryPoints.Scheduled.execute = (context: EntryPoints.Schedu
       </recurrence>
     </scriptdeployment>
   </scriptdeployments>
-</scheduledscript>`)
+</scheduledscript>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -630,7 +703,7 @@ export let execute: EntryPoints.Scheduled.execute = (context: EntryPoints.Schedu
 }
 
 // CreateSuitelet creates a suitelet script
-func (s *Tree) CreateSuitelet(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateSuitelet(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "suitelet", `import {EntryPoints} from "N/types";
 
 /**
@@ -681,7 +754,7 @@ export let onRequest: EntryPoints.Suitelet.onRequest = (context: EntryPoints.Sui
       <title>{{.ScriptName}}</title>
     </scriptdeployment>
   </scriptdeployments>
-</suitelet>`)
+</suitelet>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -689,7 +762,7 @@ export let onRequest: EntryPoints.Suitelet.onRequest = (context: EntryPoints.Sui
 }
 
 // CreateUserEvent creates a user event script
-func (s *Tree) CreateUserEvent(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateUserEvent(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "userevent", `import {EntryPoints} from "N/types";
 
 /**
@@ -735,7 +808,7 @@ export let afterSubmit: EntryPoints.UserEvent.afterSubmit = (context: EntryPoint
   <notifyowner>T</notifyowner>
   <notifyuser>F</notifyuser>
   <scriptfile>[{{.ScriptPath}}]</scriptfile>
-</usereventscript>`)
+</usereventscript>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -743,7 +816,7 @@ export let afterSubmit: EntryPoints.UserEvent.afterSubmit = (context: EntryPoint
 }
 
 // CreateWorkflowAction creates a workflow action script
-func (s *Tree) CreateWorkflowAction(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateWorkflowAction(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "workflowaction", `import {EntryPoints} from "N/types";
 
 /**
@@ -781,7 +854,7 @@ export let onAction: EntryPoints.WorkflowAction.onAction = (context: EntryPoints
   <returnrecordtype>-4</returnrecordtype>
   <returntype>SELECT</returntype>
   <scriptfile>[{{.ScriptPath}}]</scriptfile>
-</workflowactionscript>`)
+</workflowactionscript>`, instruct)
 	if err != nil {
 		return err
 	}
@@ -789,7 +862,7 @@ export let onAction: EntryPoints.WorkflowAction.onAction = (context: EntryPoints
 }
 
 // CreateModule creates a module file
-func (s *Tree) CreateModule(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateModule(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "type", `/**
  * Type declaration file
  *
@@ -807,7 +880,7 @@ func (s *Tree) CreateModule(global *store.GlobalStore, project *store.ProjectSto
  * @NModuleScope SameAccount
  */
 
-`, ``)
+`, ``, instruct)
 	if err != nil {
 		return err
 	}
@@ -815,7 +888,7 @@ func (s *Tree) CreateModule(global *store.GlobalStore, project *store.ProjectSto
 }
 
 // CreateType creates a type file
-func (s *Tree) CreateType(global *store.GlobalStore, project *store.ProjectStore) error {
+func (s *Tree) CreateType(global *store.GlobalStore, project *store.ProjectStore, instruct string) error {
 	err := s.addDeploymentFiles(global, project, "module", `/**
  * Module file
  *
@@ -834,7 +907,7 @@ func (s *Tree) CreateType(global *store.GlobalStore, project *store.ProjectStore
  */
 
 export {};
-`, ``)
+`, ``, instruct)
 	if err != nil {
 		return err
 	}
